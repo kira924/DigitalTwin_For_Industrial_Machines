@@ -1,0 +1,47 @@
+# 1. Environment Variables and Secrets
+.env
+.env.local
+
+# 2. Python and AI Environment
+__pycache__/
+*.py[cod]
+*~
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# 3. Large Datasets
+CMAPSSData/
+data/raw/
+*.csv
+*.txt
+*.dat
+
+# 4. Machine Learning Models and Scalers
+saved_models/*.keras
+saved_models/*.h5
+saved_models/*.pb
+saved_models/checkpoints/
+*.gz
+*.pkl
+
+# 5. Mobile App (Flutter)
+02_Mobile_App/build/
+02_Mobile_App/.dart_tool/
+02_Mobile_App/.flutter-plugins
+02_Mobile_App/.flutter-plugins-dependencies
+02_Mobile_App/.packages
+*.keystore
+*.jks
+
+# 6. 3D Simulation
+*.blend1
+*.blend2
+crash.txt
+
+# 7. IDEs and OS specific files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
