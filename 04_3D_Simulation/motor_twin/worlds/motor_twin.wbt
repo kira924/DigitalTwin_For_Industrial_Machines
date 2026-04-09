@@ -1,0 +1,140 @@
+#VRML_SIM R2025a utf8
+
+WorldInfo {
+}
+Viewpoint {
+  orientation -0.22637077685256898 -0.5371854674780208 0.8125195658675456 5.326308485143353
+  position -1538.4438598308582 1588.886307397709 969.457781544874
+}
+DEF MOTOR_TWIN Robot {
+  translation 0 61.12 0.6
+  rotation 1 0 0 4.692820414042842e-06
+  children [
+    HingeJoint {
+      jointParameters HingeJointParameters {
+        position 3681.104320000331
+        axis 0 0 1
+      }
+      device [
+        RotationalMotor {
+          name "rotor_motor"
+        }
+      ]
+      endPoint Solid {
+        rotation 0 0 -1 4.700823315623133
+        children [
+          Pose {
+            translation 0 -50 310
+            rotation 0 1 0 3.14159
+            children [
+              Shape {
+                appearance PBRAppearance {
+                  baseColor 1 0.9 0
+                  roughness 1
+                  metalness 0
+                }
+                geometry Mesh {
+                  url [
+                    "../assets/motor_rotor.obj"
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+    Pose {
+      children [
+        Transform {
+          translation 2.79445 134.948 69.9183
+          rotation 0.561913965731116 0.5711759651662637 -0.59833996350964 2.0998
+          scale 2 2 2
+          children [
+            Shape {
+              appearance DEF SENSOR_APPEARANCE_1 PBRAppearance {
+                baseColor 0.8 0.2 0.2
+                roughness 1
+                metalness 0
+              }
+              geometry Mesh {
+                url [
+                  "../assets/vibration_sensor.obj"
+                ]
+              }
+            }
+          ]
+        }
+        Transform {
+          translation -118.297 1.77157 -2.1961
+          rotation 0.5814188153722287 0.5933068115972318 0.5567218232146833 2.08444
+          scale 2 2 2
+          children [
+            Shape {
+              appearance DEF SENSOR_APPEARANCE_2 PBRAppearance {
+                baseColor 0.8 0.2 0.2
+                roughness 1
+                metalness 0
+              }
+              geometry Mesh {
+                url [
+                  "../assets/Unnamed-DHT22 Temperatursensor v8.obj"
+                ]
+              }
+            }
+          ]
+        }
+        Pose {
+          translation -3.54293 9.37599 6.9984
+          rotation 0.9999779028852313 -0.006647837336680247 0 3.10776
+          children [
+            Shape {
+              appearance DEF SENSOR_APPEARANCE_3 PBRAppearance {
+                baseColor 0.8 0.2 0.2
+                roughness 1
+                metalness 0
+              }
+              geometry Mesh {
+                url [
+                  "../assets/proximity_sensor.obj"
+                ]
+              }
+            }
+          ]
+        }
+        Shape {
+          appearance DEF MOTOR_BODY_APPEARANCE PBRAppearance {
+            baseColor 0.55 0.35 0.3
+            roughness 1
+            metalness 0
+          }
+          geometry Mesh {
+            url [
+              "../assets/motor_body.obj"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+  controller "motor_twin"
+  supervisor TRUE
+}
+DirectionalLight {
+  ambientIntensity 1
+  direction 0 -1 0
+}
+DirectionalLight {
+  ambientIntensity 1
+  direction 0 1 0
+  intensity 0.8
+}
+DirectionalLight {
+  ambientIntensity 1
+  intensity 0.8
+}
+DirectionalLight {
+  ambientIntensity 1
+  direction 0 0 1
+  intensity 0.8
+}
