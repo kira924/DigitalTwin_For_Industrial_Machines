@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "727870723515",
+    "project_id": "digital-twinmust",
+    "storage_bucket": "digital-twinmust.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:727870723515:android:8fd9d687a7e916e91de09e",
+        "android_client_info": {
+          "package_name": "com.example.final_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDOVGvMrwiEuGbzCRqd35mgm_rNbCnOtWQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

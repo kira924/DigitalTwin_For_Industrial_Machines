@@ -1,0 +1,32 @@
+name: final_project
+description: Digital Twin IoT Monitoring App (Flutter)
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.2
+  fl_chart: ^0.66.2
+  mqtt_client: ^10.0.0
+  http: ^1.2.0
+  firebase_core: ^3.15.2
+  firebase_auth: ^5.6.2
+  cloud_firestore: ^5.6.11
+  image_picker: ^1.1.2
+  shared_preferences: ^2.5.3
+  mime: ^2.0.0
+  http_parser: ^4.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/

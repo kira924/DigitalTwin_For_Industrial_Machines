@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+tflite-runtime
+numpy
+joblib
+python-dotenv
+cloudinary
+firebase-admin

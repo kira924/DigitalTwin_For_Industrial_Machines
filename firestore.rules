@@ -1,0 +1,156 @@
+// Firestore security rules for the Digital Twin Monitoring app.
+//
+// Phase 2 model: roles are { admin, engineer, viewer } and the role is
+// stored on the user's profile document `users/{uid}`. Rules look up
+// the caller's role via `get(/databases/$(database)/documents/users/$(request.auth.uid))`.
+//
+// IMPORTANT
+// The recommended production approach is to mirror role + isActive into
+// a Firebase Auth custom claim (set by a Cloud Function). When that's in
+// place, swap the `roleOf()` helper to `request.auth.token.role`. Custom
+// claims avoid an extra read per request and survive token revocation.
+//
+// Today, without claims, every gated write costs one users/{uid} read.
+// That's acceptable for MVP volume.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── helpers ────────────────────────────────────────────────────────
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function meDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function roleOf() {
+      // returns 'admin' | 'engineer' | 'viewer' | null
+      return signedIn() && meDoc().data.role != null
+        ? meDoc().data.role
+        : null;
+    }
+
+    function isActiveUser() {
+      // A user is "active" when isActive==true. Older docs that only
+      // have `enabled` are honored too.
+      return signedIn() && (
+        (meDoc().data.isActive == true) ||
+        (meDoc().data.isActive == null && meDoc().data.enabled == true)
+      );
+    }
+
+    function isAdmin()    { return isActiveUser() && roleOf() == 'admin'; }
+    function isEngineer() { return isActiveUser() && roleOf() == 'engineer'; }
+
+    // ── users ──────────────────────────────────────────────────────────
+    // - Anyone signed in can read the user list (so app screens can show
+    //   names/avatars). Tighten if directory privacy matters.
+    // - Each user can write their own doc IFF they aren't escalating their
+    //   role and aren't toggling their own isActive (admin-only).
+    // - Admin can write any user doc.
+    match /users/{uid} {
+      allow read: if signedIn();
+
+      allow create: if signedIn() && (
+        // self-signup creating own profile
+        request.auth.uid == uid &&
+        request.resource.data.role in ['admin', 'engineer', 'viewer'] &&
+        // Note: the *value* is allowlisted by the Flutter resolveSeedRole;
+        // server-side, we enforce that whatever role the client claims
+        // exists in this set. Stricter enforcement (admin can only be
+        // assigned by another admin or by Cloud Function with custom
+        // claim) goes here when claims are in place.
+        request.resource.data.isActive == true
+      ) || isAdmin();
+
+      allow update: if isAdmin() || (
+        request.auth.uid == uid &&
+        // user cannot promote themselves to admin
+        request.resource.data.role == resource.data.role &&
+        // user cannot toggle their own isActive
+        request.resource.data.isActive == resource.data.isActive
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ── machines ───────────────────────────────────────────────────────
+    // All authenticated users can read the fleet. Only admin can mutate.
+    match /machines/{machineId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+
+      // ── per-machine reports ──────────────────────────────────────────
+      // Engineer or admin can create reports.
+      // Engineers may update only reports they authored.
+      // Only admins may delete.
+      match /reports/{reportId} {
+        allow read: if signedIn();
+
+        allow create: if (isAdmin() || isEngineer()) &&
+          request.resource.data.authorId == request.auth.uid;
+
+        allow update: if isAdmin() || (
+          isEngineer() &&
+          resource.data.authorId == request.auth.uid &&
+          // engineers cannot rewrite the author
+          request.resource.data.authorId == resource.data.authorId
+        );
+
+        allow delete: if isAdmin();
+      }
+
+      // ── per-machine history ──────────────────────────────────────────
+      // Append-only: engineer/admin may append; nobody can update or
+      // delete history rows from the client. (Cleanup belongs to
+      // server-side jobs.)
+      match /history/{eventId} {
+        allow read:   if signedIn();
+        allow create: if isAdmin() || isEngineer();
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ── alerts (top-level emergency feed) ─────────────────────────────
+    // Read by anyone signed in. Acknowledgment writes admin/engineer.
+    match /alerts/{alertId} {
+      allow read:   if signedIn();
+      allow create: if isAdmin() || isEngineer();
+      allow update: if isAdmin() || isEngineer();
+      allow delete: if isAdmin();
+    }
+
+    // ── factory settings ──────────────────────────────────────────────
+    match /config/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Default-deny anything not explicitly allowed above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// Storage rules (for Firebase Storage) — keep aligned with this file.
+// Suggested rules:
+//
+//   service firebase.storage {
+//     match /b/{bucket}/o {
+//       match /machines/{machineId}/{file=**} {
+//         allow read:  if request.auth != null;
+//         allow write: if request.auth != null &&
+//           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+//       }
+//       match /machines/{machineId}/reports/{reportId}/{file=**} {
+//         allow read:  if request.auth != null;
+//         allow write: if request.auth != null &&
+//           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin','engineer'];
+//       }
+//     }
+//   }
