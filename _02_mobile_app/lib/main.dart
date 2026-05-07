@@ -1,28 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:provider/provider.dart';
 
-import 'ui/screens/dashboard_screen.dart';
+import 'app/app.dart';
+import 'app/state.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Firebase initialization is handled inside AppState._initialize() via
+  // FirebaseBootstrap.initialize(), which wraps the call in a try-catch and
+  // sets firebaseEnabled accordingly. Calling Firebase.initializeApp() here
+  // would cause a duplicate-app exception on the second call, making
+  // firebaseEnabled report false even when Firebase is properly configured.
+
   runApp(
-    const ProviderScope(
-      child: MyApp(),
+    ChangeNotifierProvider(
+      create: (_) => AppState(),
+      child: const DigitalTwinApp(),
     ),
   );
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Industrial Dashboard',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
-      ),
-      home: const DashboardScreen(),
-    );
-  }
 }

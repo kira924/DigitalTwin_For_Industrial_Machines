@@ -15,7 +15,7 @@ Streams raw sensors via MQTT and reacts to AI diagnostics.
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 DATASET_PATH = os.path.join(PROJECT_ROOT, '01_AI_and_Data', 'data', 'raw', 'CMAPSSData', 'test_FD001.txt')
 SELECTED_UNIT = 34 
-STEP_INTERVAL_SECONDS = 0.5
+STEP_INTERVAL_SECONDS = 2
 
 # MQTT Setup
 BROKER_ADDRESS = "127.0.0.1"

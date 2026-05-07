@@ -1,6 +1,6 @@
 {
-    "name": "_02_mobile_app",
-    "short_name": "_02_mobile_app",
+    "name": "final_project",
+    "short_name": "final_project",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
