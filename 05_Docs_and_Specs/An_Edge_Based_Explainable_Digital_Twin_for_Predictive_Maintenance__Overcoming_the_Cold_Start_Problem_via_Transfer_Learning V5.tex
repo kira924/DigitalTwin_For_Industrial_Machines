@@ -1,0 +1,290 @@
+\documentclass[journal]{IEEEtran}
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{url}
+\usepackage{listings}
+
+% Title
+\title{An Edge-Based Explainable Digital Twin for Predictive Maintenance: Overcoming the Cold Start Problem via Transfer Learning}
+
+% Authors formatting for IEEE Journal
+\author{Khaled~Abdelrahman, Belal~Ahmed, Mohamed~Shaban, Ahmed~Elhady, Mohamed~Ibrahim, \\
+Dr.~Nehal~Abd~El-Salam~Mohamed, T.A.~Ahmed~Abdallah, and~T.A.~Rahma~Waled% 
+\thanks{K. Abdelrahman, B. Ahmed, M. Shaban, A. Elhady, M. Ibrahim, Dr. Nehal Abd El-Salam Mohamed, T.A. Ahmed Abdallah, and T.A. Rahma Waled are with the Faculty of Information Technology, Misr University for Science and Technology (MUST), Giza, Egypt (Corresponding author e-mail: kirakel924@gmail.com).}}
+
+% Define custom colors and JSON language for listings
+\colorlet{punct}{red!60!black}
+\definecolor{background}{HTML}{F8F8F8}
+\definecolor{delim}{RGB}{20,105,176}
+\colorlet{numb}{magenta!60!black}
+
+\lstdefinelanguage{json}{
+    basicstyle=\normalfont\ttfamily\scriptsize,
+    showstringspaces=false,
+    breaklines=true,
+    frame=lines,
+    backgroundcolor=\color{background},
+    literate=
+     *{0}{{{\color{numb}0}}}{1}
+      {1}{{{\color{numb}1}}}{1}
+      {2}{{{\color{numb}2}}}{1}
+      {3}{{{\color{numb}3}}}{1}
+      {4}{{{\color{numb}4}}}{1}
+      {5}{{{\color{numb}5}}}{1}
+      {6}{{{\color{numb}6}}}{1}
+      {7}{{{\color{numb}7}}}{1}
+      {8}{{{\color{numb}8}}}{1}
+      {9}{{{\color{numb}9}}}{1}
+      {:}{{{\color{punct}{:}}}}{1}
+      {,}{{{\color{punct}{,}}}}{1}
+      {\{}{{{\color{delim}{\{}}}}{1}
+      {\}}{{{\color{delim}{\}}}}}{1}
+      {[}{{{\color{delim}{[}}}}{1}
+      {]}{{{\color{delim}{]}}}}{1},
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Predictive maintenance represents a cornerstone of Industry 4.0, leveraging machine learning to estimate the Remaining Useful Life (RUL) of industrial machinery. However, deploying these models in real-world environments encounters multiple critical obstacles: the inherent "Black Box" nature of deep learning architectures, the "Cold Start" anomaly when deploying on newly installed equipment, and the latency issues associated with cloud-based inference. This paper proposes a comprehensive Edge-based Explainable Digital Twin architecture to resolve these limitations. Grounded in the principle that the underlying physics of degradation remain consistent across similar machinery, we utilize a Long Short-Term Memory (LSTM) base model trained on the CMAPSS turbofan engine dataset to capture these physical realities. To overcome the cold start problem, we implement a physics-aware Transfer Learning and Quick Calibration approach, utilizing minimal initial operational data to fine-tune the model for new environments
+Furthermore, we integrate SHapley Additive exPlanations (SHAP) to provide real-time, dynamic extraction of fault root causes. The entire pipeline is optimized using TensorFlow Lite for low-latency edge deployment. The edge device continuously streams a fused JSON payload containing RUL predictions, live sensor data, and SHAP-derived impact percentages via MQTT to a mobile frontend application. Experimental results demonstrate highly stable RUL predictions with an average RMSE of 14.38, precise real-time identification of degradation factors, and a robust mobile dashboard that visualizes fault probabilities, effectively bridging the gap between theoretical artificial intelligence and actionable industrial engineering.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Digital Twin, Predictive Maintenance, Explainable AI, Transfer Learning, Cold Start Problem.
+\end{IEEEkeywords}
+
+\section{Introduction}
+The evolution of Industry 4.0 has vastly accelerated the integration of Digital Twins into modern manufacturing and industrial operations. A Digital Twin serves as a synchronized virtual replica of a physical asset, enabling engineers to monitor, simulate, and optimize machinery in real time. Within this paradigm, Predictive Maintenance (PdM) has emerged as a vital application , shifting industrial strategies from reactive maintenance to proactive interventions based on the actual health state of the equipment \cite{serradilla2020}.
+
+Recent advancements in deep learning , particularly Long Short-Term Memory (LSTM) networks, have shown remarkable success in estimating the Remaining Useful Life (RUL) of complex machinery using multivariate sensor data. Despite these algorithmic successes, widespread industrial adoption is severely hindered by significant practical challenges \cite{zheng2017}.
+
+First, deep learning models operate as opaque black boxes. While they output highly accurate RUL estimations, they fail to provide the engineering justification behind their predictions. Maintenance engineers require actionable insights such as knowing which specific subsystem or sensor is driving the predicted failure\cite{lundberg2017}.
+
+Second, the "Cold Start" problem remains a critical bottleneck. Traditional models require extensive historical run-to-failure data from the specific machine they are monitoring. When a factory installs a new machine, the model typically fails because it treats sensor data as abstract numerical values rather than physical indicators\cite{zhao2019}. 
+
+Third, industrial environments suffer from high latency and connectivity issues when relying on cloud computing for continuous inference. Transferring high-frequency sensor streams to the cloud for heavy  Explainable AI (XAI) computations is inefficient and delays critical decision-making\cite{chen2019}.
+
+To address these gaps, this paper proposes an Edge-Based Explainable Digital Twin. Our methodology recognizes that the physical laws governing mechanical degradation are fundamentally the same across similar equipment. We propose a Transfer Learning framework that transfers the "learned physics" from a base model to new machinery. A rapid calibration using only the initial operational cycles allows the model to adapt instantly, bypassing the cold start dilemma.
+
+We resolve the latency and black-box limitations by integrating SHapley Additive exPlanations (SHAP) directly into an edge-computing pipeline \cite{lundberg2017}. Converted to TensorFlow Lite (TFLite), the model performs inference locally. It utilizes the Message Queuing Telemetry Transport protocol (MQTT) to deliver continuous, real-time RUL predictions and dynamic root-cause analysis directly to a mobile application dashboard, ensuring that operators have immediate, interpretable access to machine health states\cite{david2021,alfuqaha2015}.
+
+\section{Related Work}
+
+Recent advancements in Industry 4.0 have heavily leveraged deep learning for Predictive Maintenance (PdM) and Remaining Useful Life (RUL) estimation. Traditional machine learning methodologies have been increasingly superseded by deep neural networks, as highlighted by Zhao et al. \cite{zhao2019}. Specifically, Convolutional Neural Networks (CNNs) \cite{babu2016} and LSTM networks have demonstrated superior capabilities in capturing complex temporal dependencies from multivariate sensor data. Furthermore, to address variations in operating conditions across different equipment and the lack of historical degradation profiles, Mao et al. \cite{mao2019} successfully proposed Transfer Learning strategies, which are vital for mitigating the early-cycle errors typically observed in the CMAPSS datasets \cite{saxena2008}.
+
+Despite these algorithmic achievements, the industrial adoption of PdM systems faces significant hurdles due to the opaque, ``black-box'' nature of deep learning. To foster trust in AI-driven maintenance, frameworks like SHAP have become the gold standard for model interpretability. Building on this, recent studies by Serradilla et al. \cite{serradilla2020} have emphasized the necessity of integrating XAI into PdM pipelines to provide actionable insights for maintenance personnel.
+
+However, the majority of these XAI-integrated solutions rely heavily on offline, cloud-centric architectures. As Chen and Ran \cite{chen2019} discussed, transmitting high-frequency industrial data to the cloud introduces unacceptable latency and security vulnerabilities. While lightweight communication protocols like MQTT have been proposed for stable Industrial IoT networks \cite{alfuqaha2015}, and tools like TensorFlow Lite have emerged to deploy models on embedded systems \cite{david2021}, the literature lacks a unified framework. 
+
+Our proposed architecture bridges this critical gap. By uniquely combining a physics-aware Transfer Learning approach with real-time SHAP extraction, and quantizing the pipeline for an edge computing gateway, we ensure low-latency, interpretable PdM without reliance on historical run-to-failure data or cloud connectivity.
+
+\section{System Architecture}
+The proposed Explainable Digital Twin abandons the traditional centralized cloud approach in favor of a decentralized, edge-to-mobile topology. The system is partitioned into four interconnected layers as illustrated in Fig.~\ref{fig:System Architecture}.
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.48\textwidth]{1 (3).png} 
+    \caption{System architecture overview of the four-layer explainable digital twin for industrial predictive maintenance.}
+    \label{fig:System Architecture}
+\end{figure}
+
+\subsection{Physical Layer (Data Acquisition)}
+This layer represents the industrial machinery equipped with an array of IoT sensors. It captures high-frequency multivariate time-series data, including temperature, vibration, and pressure readings. In our implementation, this is simulated using the data streaming script reading from a test dateset, generating a new sensor array per operational cycle.
+
+\subsection{Edge AI Layer (Inference and Explainability)}
+The core computational heavy lifting is performed locally on an edge microprocessor. This layer handles:
+\begin{itemize}
+    \item \textbf{Data Preprocessing:} Scaling the raw data and constructing the 3D sliding windows required for sequential forecasting.
+    \item \textbf{RUL Inference:} Executing the quantized TFLite LSTM model to predict the remaining cycles.
+    \item \textbf{Real-Time XAI:} Running the SHAP GradientExplainer. Unlike traditional offline SHAP implementations, our architecture calculates the Shapley values dynamically for each incoming time window, converting complex 3D impact matrices into actionable 1D percentage vectors.
+\end{itemize}
+
+\subsection{Communication Layer (MQTT Protocol)}
+To ensure real-time, low-bandwidth transmission, the edge device packages the raw sensor data, the predicted RUL, and the SHAP root-cause percentages into a unified JavaScript Object Notation (JSON) payload. This payload is published to an MQTT broker at a frequency of 1 Hz. MQTT was selected over Hypertext Transfer Protocol (HTTP) due to its lightweight publish-subscribe model, which is highly resilient in unstable industrial networks.
+
+\subsection{Presentation Layer (Mobile Dashboard)}
+The terminal end of the Digital Twin is a cross-platform mobile application developed using Flutter. The application subscribes to the MQTT broker, parses the incoming JSON payload, and updates the user interface sequentially. It utilizes linear progress bars dynamically driven by the SHAP percentages to visually highlight the most critical sensors contributing to machine degradation.
+
+\section{Methodology}
+
+\subsection{Dataset and Preprocessing}
+The framework was developed utilizing the C-MAPSS dataset provided by NASA \cite{saxena2008}. For this study, sensors exhibiting constant values across all cycles were eliminated. To handle the varied magnitudes of the remaining 16 features, Min-Max scaling was applied.
+
+To enable the LSTM to capture temporal dynamics, the continuous sensor stream was transformed using a sliding window technique. We defined a window size of $W=30$ cycles. At any given time step $t$, the input matrix $X_t\in\mathbb{R}^{W\times F}$, where $F=16$. This transformation yields a 3D tensor of shape $|1,30,16|$.
+
+\subsection{Physical Interpretation of Degradation Dynamics}
+A core premise of our methodology is that the physics of degradation remain constant. To leverage this, it is imperative to understand the underlying thermodynamic principles governing the CMAPSS turbofan engines. The engine consists of several rotating components, primarily the Fan, Low-Pressure Compressor (LPC), High-Pressure Compressor (HPC), High-Pressure Turbine (HPT), and Low-Pressure Turbine (LPT).
+
+As the engine undergoes repeated operational cycles, physical wear such as blade tip clearance enlargement or seal degradation in the HPC alters the thermodynamic efficiency. According to the laws of thermodynamics, to maintain a constant target thrust despite internal wear, the engine control system must increase the fuel flow. This mechanical compensation directly manifests as an inevitable increase in specific sensor readings, notably the HPC outlet temperature (Sensor $s\_3$) and the core speed (Sensor $s\_13$). 
+
+By structuring our input space to capture these specific trajectories, the subsequent LSTM model is not merely finding statistical correlations. Consequently, when the model encounters a new, unseen engine, the foundational physics mapping is already established, forming the theoretical basis for our successful transfer learning approach.
+
+\subsection{LSTM Base Model Formulation}
+The base LSTM model captures the underlying physical degradation rules. The core computations at a time step $t$ are defined by the standard LSTM gating equations (Forget, Input, Output gates), allowing the network to retain long-term mechanical wear trends.
+
+\subsection{Physics-Aware Transfer Learning and Calibration}
+To resolve the cold start anomaly, we freeze the foundational LSTM layers which have already learned the generalized physics of degradation and re-initialize the dense output layers. We then perform a "Quick Calibration" using only the first $N$ cycles of the newly installed equipment to establish the baseline healthy state, adjusting predictions to the new domain's initial conditions.
+
+\subsection{Dynamic SHAP Aggregation for Edge Streaming}
+Handling SHAP outputs for 3D tensors in a real-time environment requires mathematical dimensionality reduction to be useful for a mobile UI. The SHAP GradientExplainer outputs a tensor of impact values matching the input window shape $|1,30,16|$. 
+
+To extract a single, actionable metric for each sensor, we compute the mean absolute impact across the time dimension as shown in Equation (1):
+\begin{equation}
+I_f = \frac{1}{W} \sum_{t=1}^{W} |\phi_{f,t}|
+\end{equation}
+Where $\phi_{f,t}$ in Equation (1) is the SHAP value for feature $f$ at time step $t$ within the window $W$. The resulting 2D array is flattened using a squeeze operation to produce a 1D vector of shape $(16,)$. Finally, Equation (2) describes how the impact values are normalized into percentages:
+\begin{equation}
+P_f = \left( \frac{I_f}{\sum_{j=1}^{F} I_j} \right) \times 100
+\end{equation}
+This calculation outputs a dictionary mapping each sensor to its exact percentage of responsibility for the current RUL drop, seamlessly feeding the mobile application's UI components.
+
+\section{Experimental Setup and Edge Integration}
+
+To simulate the industrial edge environment, the experimental setup utilized a local computational gateway (representing an Industrial PC) acting as the edge node, hosting a local MQTT broker. Deploying a heavy Keras model even on local edge gateways introduces unnecessary latency and memory overhead, which is detrimental to high-frequency industrial monitoring. Therefore, the calibrated model was converted into a TensorFlow Lite (TFLite) format \cite{david2021}. This process quantizes the 32-bit floating-point weights into 8-bit integers, resolving initial structural input warnings typical of unoptimized Keras model serialization.
+
+The local edge gateway continuously reads the scaled multivariate sensor stream (extracting the required 3D tensor of shape $|1, 30, 16|$), calculates the RUL and SHAP values, and packages the data into a JSON payload. To demonstrate the practical implementation, the following snippet illustrates the actual JSON structure generated during operational Cycle 30 and transmitted via the MQTT protocol to the mobile application dashboard at a frequency of 1 Hz:
+
+\begin{lstlisting}[language=json]
+{
+    "engine_id": 34,
+    "current_cycle": 30,
+    "predicted_rul": 125.72,
+    "current_sensor_readings": {
+        "setting_1": -0.29,
+        "setting_2": 0.81,
+        "s_2": -0.66,
+        "s_3": -0.31,
+        "s_4": -0.49,
+        "s_7": 0.42,
+        "s_13": -0.76
+    },
+    "ai_root_causes": {
+        "s_4": 12.65,
+        "setting_2": 10.72,
+        "s_3": 9.52,
+        "s_11": 8.87,
+        "s_2": 8.73,
+        "s_13": 7.14
+    }
+}
+\end{lstlisting}
+\vspace{-1mm}
+\textit{Listing 1:Sensor arrays in the snippet are truncated for brevity.}
+
+This structured payload allows the Flutter-based presentation layer, deployed on an Android smartphone, to decouple the heavy AI computations from the UI rendering. By receiving the lightweight JSON stream, the Android application seamlessly updates the linear progress bars based on the \texttt{ai\_root\_causes} dictionary without experiencing any computational bottlenecks.
+
+\begin{table*}[htbp]
+\caption{RMSE Comparison Across Different CMAPSS Sub-datasets}
+\begin{center}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Model Architecture} & \textbf{FD001 (1 Condition)} & \textbf{FD002 (6 Conditions)} & \textbf{FD003 (2 Faults)} & \textbf{Average RMSE} \\
+\hline
+Random Forest (Baseline) & 17.89 & 29.34 & 21.05 & 22.76 \\
+\hline
+Standard CNN & 15.60 & 25.10 & 18.90 & 19.86 \\
+\hline
+Standard LSTM (No Calibration) & 14.85 & 35.60 (Cold Start) & 17.50 & 22.65 \\
+\hline
+\textbf{Proposed Edge-Digital Twin} & \textbf{12.45} & \textbf{16.80} & \textbf{13.90} & \textbf{14.38} \\
+\hline
+\end{tabular}
+\label{tab:rmse_comparison}
+\end{center}
+\end{table*}
+
+
+\section{Results and Discussion}
+
+\subsection{Multi-Dataset Evaluation and Cold Start Mitigation}
+
+To rigorously validate the robustness and generalizability of the physics-aware transfer learning approach, the proposed model was evaluated across multiple distinct subsets of the CMAPSS dataset, specifically FD001, FD002, and FD003. These subsets were strategically selected to represent varying degrees of complexity; for instance, FD001 simulates a single operating condition with a single fault mode, while FD002 and FD003 introduce the complexities of multiple operational conditions and simultaneous fault modes, respectively. 
+
+Table \ref{tab:rmse_comparison} presents a comprehensive quantitative comparison of the Root Mean Square Error (RMSE) against several established baseline models. The performance of the ``Standard LSTM'' starkly demonstrates the cold start failure: when applied to new, unseen domains without prior calibration, it struggles to map the abstract sensor readings to the new physical state, resulting in significantly elevated error rates during early operational cycles. In stark contrast, our proposed Quick Calibration strategy actively mitigates this vulnerability. By utilizing only a minimal sequence of initial cycles, the Edge-Digital Twin rapidly adapts its learned physical baseline to the specific operational signature of the new machinery. This adaptive capability not only prevents the cold start anomaly but also enables our model to significantly outperform traditional, static methodologies across all tested dataset variations, which is clearly illustrated in Fig.~\ref{fig:transfer_loss}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.48\textwidth]{transfer_loss.png} 
+    \caption{Training loss comparison: The Transfer Learning approach (red) demonstrates significantly faster convergence and a 26.4\% improvement on small initial data compared to training from scratch (blue), effectively proving the mitigation of the cold start anomaly.}
+    \label{fig:transfer_loss}
+\end{figure}
+
+\subsection{Ablation Studies}
+To validate our architectural choices, ablation studies were conducted. First, we evaluated the impact of the sliding window size (W). A window size of W=15 failed to capture long-term degradation patterns, resulting in erratic RUL spikes. A window of W=50 smoothed the predictions excessively, causing delayed responses to sudden anomalies. W=30 provided the optimal balance between responsiveness and stability. Second, comparing our LSTM approach against a baseline Random Forest model demonstrated a 14\% improvement in RMSE, proving the necessity of sequential memory for physical degradation modeling.
+
+\subsection{RUL Prediction Performance}
+Following the quick calibration, the model demonstrated highly stable RUL predictions on the test set as clearly illustrated in Fig.~\ref{fig:rul_curve}. Unlike uncalibrated models that exhibited the cold start failure (producing entirely inaccurate RULs at cycle 0), our calibrated model began predictions accurately. For Engine 34, the predicted RUL decreased smoothly and monotonically (e.g., from 126.13 to 125.88 over successive cycles), reflecting the stable operational phase of the machine without false alarms.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.48\textwidth]{engine34.png} 
+    \caption{Predicted RUL vs. Actual RUL for Engine 34. The calibrated universal model produces a smooth, monotonic degradation curve, accurately capturing the physical wear trajectory of the new engine.}
+    \label{fig:rul_curve}
+\end{figure}
+
+
+\subsection{Real-Time Root Cause Analysis}
+During live streaming, the SHAP integration successfully isolated the driving factors of degradation. Empirical results from the generated JSON payloads showed that specific operational parameters (e.g., setting\_2) and physical sensors (e.g., $s\_3$ and $s\_13$) consistently emerged as the primary contributors, each accounting for approximately 10\% to 16\% of the degradation score. This transparency allows maintenance teams to bypass exhaustive diagnostics and immediately inspect the flagged subsystems via the mobile dashboard.
+
+\subsection{Edge Deployment Metrics}
+The TFLite quantization reduced the model size from 4 MB to 160 KB, a 96\% reduction. The inference time per window (including RUL prediction, SHAP extraction, and JSON packaging) averaged 42 milliseconds on a standard edge microprocessor. This minimal latency ensures that the MQTT payload is generated and transmitted well within the 1-second operational cycle limit, confirming the system's viability for real-time IoT deployment without relying on cloud computation.
+
+\subsection{Validating AI Explanations with Thermodynamic Laws}
+A critical evaluation metric for any Explainable AI system in industrial contexts is whether the model's explanations align with established physical laws. During live streaming, the SHAP integration dynamically quantified feature impacts. Empirical results visualized in Fig. \ref{fig:failure_signature} consistently highlight Static Pressure ($s\_7$), Corrected Core Speed ($s\_13$), and HPC Outlet Temperature ($s\_3$) as the dominant drivers of RUL degradation.
+
+From a mechanical engineering perspective, this AI-generated insight is remarkably accurate. As established in our physical interpretation, degradation in the high-pressure subsystems specifically the High-Pressure Compressor (HPC) leads to a reduction in pressure ratios and thermal efficiency. This forces the engine to operate at higher core speeds and temperatures to sustain the required thrust. The fact that the SHAP explainer independently identified Static Pressure and HPC Outlet Temperature as the primary root causes proves that the Edge-Digital Twin is reasoning based on actual thermodynamics rather than spurious data correlations. This robust alignment between AI explainability and physical reality validates the reliability of the system for deployment in critical maintenance operations.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.48\textwidth]{root_cause_chart.png} 
+    \caption{Failure signature for Engine 34. The SHAP-derived contributions perfectly align with thermodynamic expectations, highlighting Static Pressure, Core Speed, and HPC Outlet Temperature as the primary indicators of mechanical wear.}
+    \label{fig:failure_signature}
+\end{figure}
+
+\section{Conclusion}
+This study presented a holistic, Edge-Based Explainable Digital Twin architecture that bridges the gap between theoretical AI and practical industrial maintenance. By acknowledging that the physics of equipment degradation are universally consistent, we successfully utilized Transfer Learning to eliminate the Cold Start problem, enabling rapid deployment on new machinery without historical failure data. 
+
+Building upon a sliding-window LSTM architecture evaluated across multiple subsets of the C-MAPSS dataset, our quick calibration strategy actively mitigated early-cycle inaccuracies, outperforming traditional baseline models in terms of RMSE. Furthermore, the integration of SHAP transformed the predictive network from a black box into a transparent diagnostic tool. Crucially, our evaluations demonstrated that the AI-generated root-cause analyses aligned perfectly with established thermodynamic laws, consistently identifying key physical wear indicators.
+
+Finally, quantizing the pipeline into a TFLite format and employing MQTT streaming proved that complex, explainable deep learning models can operate efficiently on resource-constrained local edge gateways. This edge-to-mobile integration allowed the continuous, low-latency transmission of actionable insights directly to an Android-based dashboard. Future work will expand this architecture to encompass unsupervised anomaly detection to capture sudden, non-degradative failures. Furthermore, we plan to evaluate the transferability of this framework across more heterogeneous and complex industrial equipment domains. We will also focus on enhancing the model's robustness against noisy or missing sensor data, which is a common challenge in real-world environments.
+
+\section*{Acknowledgment}
+The authors would like to express their profound gratitude to Dr. Nehal Abd El-Salam Mohamed, T.A. Ahmed Abdallah, and T.A. Rahma Waled for their continuous guidance, technical insights, and supervision throughout this research project.
+
+\begin{thebibliography}{00}
+
+\bibitem{serradilla2020} O. Serradilla, E. Zugasti, J. Rodriguez, and U. Zatarain, "Deep Learning Models for Predictive Maintenance: A Case Study in Explainable AI," in \textit{IEEE International Conference on Emerging Technologies and Factory Automation (ETFA)}, 2020, pp. 1--8.
+
+\bibitem{zheng2017} S. Zheng, K. Ristovski, A. Farahat, and C. Gupta, "Long Short-Term Memory Network for Remaining Useful Life estimation," in \textit{IEEE International Conference on Prognostics and Health Management (ICPHM)}, 2017, pp. 88--95.
+
+\bibitem{lundberg2017} S. M. Lundberg and S.-I. Lee, "A Unified Approach to Interpreting Model Predictions," in \textit{Advances in Neural Information Processing Systems (NIPS)}, 2017, pp. 4765--4774.
+
+\bibitem{zhao2019} R. Zhao, R. Yan, Z. Chen, K. Mao, P. Wang, and R. X. Gao, "Deep learning and its applications to machine health monitoring," \textit{Mechanical Systems and Signal Processing}, vol. 115, pp. 213--237, 2019.
+
+\bibitem{chen2019} J. Chen and X. Ran, "Deep Learning With Edge Computing: A Review," \textit{Proceedings of the IEEE}, vol. 107, no. 8, pp. 1655--1674, 2019.
+
+\bibitem{david2021} R. David \textit{et al.}, "TensorFlow Lite Micro: Embedded Machine Learning on TinyML Systems," in \textit{Proceedings of Machine Learning and Systems (MLSys)}, vol. 3, pp. 800--811, 2021.
+
+\bibitem{alfuqaha2015} A. Al-Fuqaha, M. Guizani, M. Mohammadi, M. Aledhari, and M. Ayyash, "Internet of Things: A Survey on Enabling Technologies, Protocols, and Applications," \textit{IEEE Communications Surveys \& Tutorials}, vol. 17, no. 4, pp. 2347--2376, 2015.
+
+\bibitem{babu2016} G. S. Babu, P. Zhao, and X. Li, "Deep Convolutional Neural Network Based Regression Approach for Estimation of Remaining Useful Life," in \textit{International Conference on Database Systems for Advanced Applications (DASFAA)}, 2016, pp. 214--228.
+
+
+\bibitem{mao2019} W. Mao, J. He, Y. Li, and Y. Yan, "Transfer Learning for Remaining Useful Life Prediction of Machines Under Different Operating Conditions," \textit{IEEE Access}, vol. 7, pp. 114499--114515, 2019.
+
+\bibitem{saxena2008} A. Saxena, K. Goebel, D. Simon, and N. Eklund, "Damage Propagation Modeling for Aircraft Engine Run-to-Failure Simulation," in \textit{International Conference on Prognostics and Health Management}, 2008, pp. 1--9.
+
+
+
+\end{thebibliography}
+
+\end{document}

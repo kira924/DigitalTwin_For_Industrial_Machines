@@ -1,62 +1,65 @@
-# Smart Factory Digital Twin App
+# Digital Twin - Quick Start Guide
 
-This package is a rebuilt Flutter UI for factory machine monitoring and management.
+This guide provides the complete, simplified workflow to run the physics-aware Digital Twin project. This includes the Webots simulation, the MQTT broker, the Python backend, and the mobile application. **No Flutter SDK or Android Studio installation is required.**
 
-## Implemented product areas
+## Prerequisites
+1. **Webots:** Installed on your PC for the 3D simulation.
+2. **Mosquitto MQTT Broker:** Installed on your host machine.
+3. **Python Environment:** Set up with the necessary dependencies (e.g., `paho-mqtt`).
+4. **Android Device:** To run the pre-built mobile application.
 
-- Responsive **Machines dashboard**
-  - search
-  - status filters
-  - machine cards with live summary
-  - admin-only add machine action
-- **Machine detail screen**
-  - hero image
-  - status summary
-  - KPI tiles
-  - performance chart
-  - sensor list
-  - status timeline
-  - quick actions: report issue, schedule maintenance, start/stop, edit machine
-- **Factory dashboard**
-  - time filters: 24h, 7d, 30d, 90d, 1y, custom
-  - OEE, energy, operating time, downtime
-  - machine-state breakdown
-  - downtime reasons breakdown
-  - top 5 downtime machines
-  - top 5 energy machines
-- **Admin / Settings**
-  - add, edit, delete machine
-  - add, edit, delete user
-  - role switching preview
-  - dark/light mode toggle
-  - Arabic RTL toggle
-  - offline mode toggle
-  - notifications toggle
-  - threshold controls
-- **Alerts** screen
-- **History** screen
-- Local industrial image assets under `assets/images/`
+---
 
-## Notes
+## Step 1: Configure Mosquitto Broker
+Before running the broker, you must configure it to accept local network connections.
+1. Install Mosquitto on your PC.
+2. Navigate to the installation directory (usually in the `C:` drive, e.g., `C:\Program Files\mosquitto`).
+3. Open the `mosquitto.conf` file with Administrator privileges.
+4. Ensure the necessary modifications are made to allow external connections. Add or uncomment the following lines:
+   ```text
+   listener 1883
+   allow_anonymous true
 
-- This environment did not have Flutter SDK installed, so the project could not be compiled here.
-- The UI and state structure were rebuilt directly in source code and packaged for local testing.
-- Real backend auth, push notifications, and persistent offline storage are scaffolded at the UI/state level but still need production service wiring.
+```
 
-## Main files changed
+## Step 2: Install the Mobile Application
 
-- `lib/app/app.dart`
-- `lib/app/routes.dart`
-- `lib/app/state.dart`
-- `lib/models/machine.dart`
-- `lib/models/app_user.dart`
-- `lib/data/machine_catalog.dart`
-- `lib/data/user_catalog.dart`
-- `lib/screens/login_screen.dart`
-- `lib/screens/machines_screen.dart`
-- `lib/screens/dashboard_screen.dart`
-- `lib/screens/alerts_screen.dart`
-- `lib/screens/history_screen.dart`
-- `lib/screens/admin_screen.dart`
-- `assets/images/*`
-- `pubspec.yaml`
+You only need to install the pre-compiled APK.
+
+1. Locate the release APK in the project directory at this path:
+`_02_mobile_app\build\app\outputs\flutter-apk\app-release.apk`
+2. Transfer this `.apk` file to your Android phone.
+3. Install the application.
+
+## Step 3: Run the Backend Services
+
+You will need to open **two separate command terminals** for this step.
+
+**Terminal 1 (Run Mosquitto):**
+Open a terminal, navigate to your Mosquitto folder, and start the broker using the configuration file:
+
+```bash
+mosquitto -v -c mosquitto.conf
+
+```
+
+**Terminal 2 (Run Python Publisher):**
+Activate your Python environment (e.g., `digital_twin`), navigate to the app directory, and run the publisher script:
+
+```bash
+python .\publisher_multi_machine.py
+
+```
+
+## Step 4: Start the 3D Simulation
+
+1. Open the Webots application.
+2. Load the specific world file for this project located at:
+`04_3D_Simulation\worlds\motor_twin.wbt`
+3. Start the simulation in Webots.
+
+## Step 5: View Live Telemetry
+
+1. Ensure your Android phone and the host PC are connected to the **same Wi-Fi network**.
+2. Open the Digital Twin app on your phone.
+3. Navigate to the **CNC Machine** page. You should now see the live data streaming directly from the Webots simulation.
