@@ -301,7 +301,7 @@ Future<void> showMachineFormSheet(BuildContext context, {Machine? machine}) {
                           code: code.text.trim(),
                           location: location.text.trim(),
                           imagePath: machine?.imagePath ?? placeholderAsset,
-                          imageUrl: currentImageUrl,
+                          imageUrl: machine?.imageUrl,
                           imageStoragePath: machine?.imageStoragePath,
                           status: selectedStatus,
                           efficiency: machine?.efficiency ?? 88,

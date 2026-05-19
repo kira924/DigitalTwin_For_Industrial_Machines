@@ -14,20 +14,27 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController email =
-      TextEditingController(text: 'belal19lol@gmail.com');
-  final TextEditingController pass = TextEditingController(text: '123456');
+  // The Autocomplete widget owns its field controller; we store a reference
+  // so _submit() and the forgot-password sheet can read the typed value.
+  TextEditingController? _emailCtrl;
+  final TextEditingController pass = TextEditingController();
+  final FocusNode _passwordFocus = FocusNode();
+  bool _passwordVisible = false;
 
   @override
   void dispose() {
-    email.dispose();
+    // _emailCtrl is owned by Autocomplete — do not dispose it here.
     pass.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     final app = context.read<AppState>();
-    final error = await app.login(email: email.text, password: pass.text);
+    final error = await app.login(
+      email: _emailCtrl?.text.trim() ?? '',
+      password: pass.text,
+    );
     if (!mounted || error == null) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -43,7 +50,8 @@ class _LoginScreenState extends State<LoginScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _ForgotPasswordSheet(prefillEmail: email.text.trim()),
+      builder: (_) =>
+          _ForgotPasswordSheet(prefillEmail: _emailCtrl?.text.trim() ?? ''),
     );
   }
 
@@ -89,13 +97,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: DTTokens.space24),
 
-                  // Cloud status banner
-                  _CloudStatusBanner(
-                    enabled: app.firebaseEnabled,
-                    text: app.firebaseStatus,
-                  ),
-                  const SizedBox(height: DTTokens.space12),
-
                   // Sign-in form
                   DtCard(
                     padding: const EdgeInsets.all(DTTokens.space20),
@@ -112,13 +113,103 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: DTTokens.label(palette.textSecondary),
                         ),
                         const SizedBox(height: 6),
-                        TextField(
-                          controller: email,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.mail_outline_rounded, size: 18),
-                            hintText: 'name@factory.local',
-                          ),
+                        Autocomplete<String>(
+                          optionsBuilder: (TextEditingValue value) {
+                            const suggestion = 'Belal19lol@gmail.com';
+                            if (value.text.isEmpty) return const [suggestion];
+                            if (suggestion
+                                .toLowerCase()
+                                .contains(value.text.toLowerCase())) {
+                              return const [suggestion];
+                            }
+                            return const [];
+                          },
+                          onSelected: (String selection) {
+                            _emailCtrl?.text = selection;
+                            FocusScope.of(context)
+                                .requestFocus(_passwordFocus);
+                          },
+                          fieldViewBuilder: (
+                            BuildContext ctx,
+                            TextEditingController fieldCtrl,
+                            FocusNode fieldFocus,
+                            VoidCallback onFieldSubmitted,
+                          ) {
+                            _emailCtrl = fieldCtrl;
+                            return TextField(
+                              controller: fieldCtrl,
+                              focusNode: fieldFocus,
+                              keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.next,
+                              enabled: !app.authBusy,
+                              onSubmitted: (_) => FocusScope.of(context)
+                                  .requestFocus(_passwordFocus),
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(
+                                    Icons.mail_outline_rounded,
+                                    size: 18),
+                                hintText: 'name@factory.local',
+                              ),
+                            );
+                          },
+                          optionsViewBuilder: (
+                            BuildContext ctx,
+                            AutocompleteOnSelected<String> onSelected,
+                            Iterable<String> options,
+                          ) {
+                            return Align(
+                              alignment: Alignment.topLeft,
+                              child: Material(
+                                color: Colors.transparent,
+                                child: Container(
+                                  margin: const EdgeInsets.only(top: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0E1A2A),
+                                    borderRadius:
+                                        BorderRadius.circular(DTTokens.radiusMd),
+                                    border: Border.all(
+                                      color: Colors.white.alphaF(0.08),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: options.map((option) {
+                                      return InkWell(
+                                        onTap: () => onSelected(option),
+                                        borderRadius: BorderRadius.circular(
+                                            DTTokens.radiusMd),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 12,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(
+                                                Icons
+                                                    .person_outline_rounded,
+                                                size: 16,
+                                                color:
+                                                    DTTokens.accentPrimary,
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Text(
+                                                option,
+                                                style: TextStyle(
+                                                  color: palette.textPrimary,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: DTTokens.space12),
                         Row(
@@ -128,7 +219,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               'Password',
                               style: DTTokens.label(palette.textSecondary),
                             ),
-                            // ── Forgot password link ──────────────────────
                             GestureDetector(
                               onTap: _openForgotPasswordSheet,
                               child: Text(
@@ -142,10 +232,25 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 6),
                         TextField(
                           controller: pass,
-                          obscureText: true,
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.lock_outline_rounded, size: 18),
+                          focusNode: _passwordFocus,
+                          obscureText: !_passwordVisible,
+                          textInputAction: TextInputAction.done,
+                          enabled: !app.authBusy,
+                          onSubmitted: (_) => _submit(),
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18),
                             hintText: '••••••',
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _passwordVisible
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                size: 18,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _passwordVisible = !_passwordVisible),
+                              tooltip: _passwordVisible ? 'Hide password' : 'Show password',
+                            ),
                           ),
                         ),
                       ],
@@ -360,47 +465,6 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _CloudStatusBanner extends StatelessWidget {
-  const _CloudStatusBanner({required this.enabled, required this.text});
-
-  final bool enabled;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = enabled ? DTTokens.statusHealthy : DTTokens.statusWarning;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.alphaF(0.08),
-        borderRadius: BorderRadius.circular(DTTokens.radiusMd),
-        border: Border.all(color: color.alphaF(0.25)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            enabled ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
-            color: color,
-            size: 16,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                height: 1.3,
-              ),
-            ),
-          ),
         ],
       ),
     );

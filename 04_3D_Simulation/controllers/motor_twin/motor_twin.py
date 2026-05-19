@@ -1,6 +1,7 @@
 from controller import Supervisor
 import math
 import os
+import ssl
 import json
 import paho.mqtt.client as mqtt
 
@@ -14,14 +15,51 @@ Streams raw sensors via MQTT and reacts to AI diagnostics.
 # ============================================================================
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 DATASET_PATH = os.path.join(PROJECT_ROOT, '01_AI_and_Data', 'data', 'raw', 'CMAPSSData', 'test_FD001.txt')
-SELECTED_UNIT = 34 
-STEP_INTERVAL_SECONDS = 0.5
+SELECTED_UNIT = 34
+
+# The first SKIP_CYCLES dataset rows are ignored so the simulation begins
+# at cycle 30 instead of cycle 1.
+SKIP_CYCLES = 29
+
+# Streaming interval schedule.
+# Each entry is (start_cycle, interval_seconds).  The interval applies from
+# that cycle onward until the next entry takes over.  Must be sorted by
+# start_cycle ascending.
+INTERVAL_SCHEDULE = [
+    (30,  0.5),   # cycles 30-59
+    (60,  2.0),   # cycles 60-79
+    (80,  0.5),   # cycles 80-132
+    (133, 2.0),   # cycles 133-142
+    (143, 0.5),   # cycles 143-169
+    (170, 1.0),   # cycle 170 to end
+]
+
+
+def get_interval_for_cycle(cycle):
+    """Return the publish interval (seconds) that applies to the given cycle number."""
+    interval = INTERVAL_SCHEDULE[0][1]
+    for start_cycle, seconds in INTERVAL_SCHEDULE:
+        if cycle >= start_cycle:
+            interval = seconds
+        else:
+            break
+    return interval
 
 # MQTT Setup
-BROKER_ADDRESS = "127.0.0.1"
-PORT = 1883
-RAW_TOPIC = "digital_twin/raw_sensors"
-AI_TOPIC = "digital_twin/engine_telemetry"
+# Defaults point to the HiveMQ Cloud private cluster.
+# Plan-B fallback (local Mosquitto, no TLS):
+#   set MQTT_BROKER=127.0.0.1
+#   set MQTT_PORT=1883
+#   set MQTT_USE_TLS=false
+#   set MQTT_USERNAME=
+#   set MQTT_PASSWORD=
+BROKER_ADDRESS = os.environ.get("MQTT_BROKER",   "1c2024b173114f9d9e1577e9d4a5c467.s1.eu.hivemq.cloud")
+PORT           = int(os.environ.get("MQTT_PORT",   "8883"))
+MQTT_USERNAME  = os.environ.get("MQTT_USERNAME",  "khaled_admin")
+MQTT_PASSWORD  = os.environ.get("MQTT_PASSWORD",  "Test1234")
+USE_TLS        = os.environ.get("MQTT_USE_TLS",   "true").strip().lower() == "true"
+RAW_TOPIC      = "digital_twin/raw_sensors"
+AI_TOPIC       = "digital_twin/engine_telemetry"
 
 # Rotor & Appearance
 TARGET_ROTOR_RPM = 1000
@@ -130,8 +168,10 @@ class IoTEdgeNode:
         self.timestep = int(self.supervisor.getBasicTimeStep())
         self.dataset = CMAPSSDataset(DATASET_PATH)
         self.unit_data = self.dataset.get_unit_data(SELECTED_UNIT)
-        self.current_index = 0
+        # Start at cycle 30 by skipping the first SKIP_CYCLES rows.
+        self.current_index = SKIP_CYCLES
         self.elapsed_time = 0.0
+        self.step_interval = get_interval_for_cycle(30)
         
         self.rotor = RotorController(self.supervisor)
         self.appearance = PBRAppearanceManager(self.supervisor)
@@ -139,17 +179,41 @@ class IoTEdgeNode:
         
         self.setup_mqtt()
 
+    def on_mqtt_connect(self, client, userdata, connect_flags, reason_code, properties):
+        if reason_code == 0:
+            print(f"[MQTT] Connected to {BROKER_ADDRESS}:{PORT}")
+            client.subscribe(AI_TOPIC, qos=1)
+            print(f"[MQTT] Subscribed to '{AI_TOPIC}' — listening for AI health updates...")
+        else:
+            print(f"[MQTT] Connection refused — reason code: {reason_code}")
+
+    def on_mqtt_disconnect(self, client, userdata, disconnect_flags, reason_code, properties):
+        if reason_code == 0:
+            print("[MQTT] Disconnected cleanly.")
+        else:
+            print(f"[MQTT] Unexpected disconnect — reason code: {reason_code}")
+
     def setup_mqtt(self):
-        # Setup MQTT Client (using Version 2 API as we fixed earlier)
         self.mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "Webots_IoT_Node")
-        self.mqtt_client.on_message = self.on_mqtt_message
+        self.mqtt_client.on_connect    = self.on_mqtt_connect
+        self.mqtt_client.on_disconnect = self.on_mqtt_disconnect
+        self.mqtt_client.on_message    = self.on_mqtt_message
+
+        if MQTT_USERNAME:
+            self.mqtt_client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+            print(f"[MQTT] Credentials set (username: {MQTT_USERNAME})")
+
+        if USE_TLS:
+            self.mqtt_client.tls_set(cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS_CLIENT)
+            print("[MQTT] TLS enabled")
+
+        mode = "HiveMQ Cloud (TLS)" if USE_TLS else "local Mosquitto (plain TCP)"
+        print(f"[MQTT] Connecting to {BROKER_ADDRESS}:{PORT} [{mode}]...")
         try:
-            self.mqtt_client.connect(BROKER_ADDRESS, PORT, 60)
-            self.mqtt_client.subscribe(AI_TOPIC)
+            self.mqtt_client.connect(BROKER_ADDRESS, PORT, keepalive=60)
             self.mqtt_client.loop_start()
-            print("[INFO] Webots Connected to MQTT Broker!")
         except Exception as e:
-            print(f"[ERROR] MQTT Connection failed: {e}")
+            print(f"[MQTT] Connection failed: {e}")
 
     def on_mqtt_message(self, client, userdata, msg):
         # Listen to AI predictions to change 3D model color
@@ -174,17 +238,23 @@ class IoTEdgeNode:
             # Stream data every interval
             dt = self.timestep / 1000.0
             self.elapsed_time += dt
-            if self.elapsed_time >= STEP_INTERVAL_SECONDS:
-                self.elapsed_time -= STEP_INTERVAL_SECONDS
-                
+            if self.elapsed_time >= self.step_interval:
+                self.elapsed_time -= self.step_interval
+
                 if self.current_index < len(self.unit_data):
                     cycle_data = self.unit_data[self.current_index]
-                    
+
                     # Publish raw sensor data
                     self.mqtt_client.publish(RAW_TOPIC, json.dumps(cycle_data))
-                    print(f"[PUBLISH] Sent Cycle {cycle_data['cycle']} to AI Engine | Current AI Health: {self.current_health:.2f}")
-                    
+                    print(f"[PUBLISH] Sent Cycle {cycle_data['cycle']} | Interval: {self.step_interval}s | Health: {self.current_health:.2f}")
+
                     self.current_index += 1
+
+                    # Update the interval based on the cycle just published.
+                    new_interval = get_interval_for_cycle(cycle_data['cycle'])
+                    if new_interval != self.step_interval:
+                        self.step_interval = new_interval
+                        print(f"[INFO] Interval changed to {self.step_interval}s at cycle {cycle_data['cycle']}")
                 else:
                     print("[INFO] End of engine lifecycle.")
                     break

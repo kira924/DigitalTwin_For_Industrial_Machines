@@ -130,8 +130,6 @@ class AdminScreen extends StatelessWidget {
             const _UserAdminPanel(),
             const SizedBox(height: DTTokens.space16),
 
-            // 7. Backend notes — clearly mark Cloud-Function-required gaps.
-            const _BackendNotesPanel(),
           ],
         ],
       ),
@@ -727,82 +725,6 @@ class _AlertChip extends StatelessWidget {
 // Backend notes — calls out gaps that are honestly out of scope today
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _BackendNotesPanel extends StatelessWidget {
-  const _BackendNotesPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = DTPalette.of(context);
-    return DtCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.info_outline_rounded,
-                  size: 14, color: DTTokens.accentPrimary),
-              const SizedBox(width: 8),
-              Text(
-                'Backend notes',
-                style: DTTokens.label(palette.textSecondary),
-              ),
-            ],
-          ),
-          const SizedBox(height: DTTokens.space12),
-          const _NoteLine(
-            text:
-                'Creating Firebase Auth users from Admin requires a Cloud Function with the Firebase Admin SDK. Today the user form writes a Firestore-only profile.',
-          ),
-          const _NoteLine(
-            text:
-                'Push notifications for emergency alerts require Firebase Cloud Messaging backend setup.',
-          ),
-          const _NoteLine(
-            text:
-                'Live cross-device sync of reports/history is partial: writes flow to Firestore subcollections; the detail screen still reads from the local in-app cache.',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NoteLine extends StatelessWidget {
-  const _NoteLine({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = DTPalette.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 5),
-            child: Container(
-              width: 4,
-              height: 4,
-              decoration: BoxDecoration(
-                color: palette.textTertiary,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: DTTokens.caption(palette.textSecondary)
-                  .copyWith(height: 1.45),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Machine admin panel — admin only

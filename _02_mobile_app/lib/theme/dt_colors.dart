@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 
 extension ColorAlphaFix on Color {
-  Color alphaF(double alpha) {
-    final a = (alpha.clamp(0.0, 1.0) * 255).round();
-    return Color.fromARGB(a, red, green, blue);
-  }
+  Color alphaF(double alpha) => withValues(alpha: alpha.clamp(0.0, 1.0));
 }
 
 /// Legacy color tokens — kept for backwards compatibility with the

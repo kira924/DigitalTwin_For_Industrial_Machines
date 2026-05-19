@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:mqtt_client/mqtt_client.dart';
 
 import 'mqtt_engine_client_vm.dart' if (dart.library.html) 'mqtt_engine_client_web.dart';
+import '../config/live_pipeline_config.dart';
 import '../models/engine_telemetry_payload.dart';
 
 const String _kEngineTelemetryTopic = 'digital_twin/engine_telemetry';
@@ -33,9 +34,14 @@ class MqttService {
       _client = client;
 
       try {
-        await client.connect();
+        const username = LivePipelineConfig.mqttUsername;
+        const password = LivePipelineConfig.mqttPassword;
+        await client.connect(
+          username.isNotEmpty ? username : null,
+          password.isNotEmpty ? password : null,
+        );
       } catch (e) {
-        // Catch the actual error and print it to the console
+        // ignore: avoid_print
         print('MQTT Connection Fatal Error: $e');
         await disconnect();
         return;

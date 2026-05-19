@@ -30,7 +30,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final MqttService _mqtt = MqttService();
   StreamSubscription<EngineTelemetryPayload>? _sub;
   final Map<int, EngineTelemetryPayload> _latestByEngine = {};
-  final Map<int, Map<String, List<double>>> _historyByEngine = {};
   final Map<int, DateTime> _lastSeenByEngine = {};
   String _connectionState = 'Connecting…';
 
@@ -254,10 +253,10 @@ class _DashboardHeader extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: DTTokens.accentPrimary.withOpacity(0.15),
+              color: DTTokens.accentPrimary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(DTTokens.radiusMd),
               border: Border.all(
-                color: DTTokens.accentPrimary.withOpacity(0.30),
+                color: DTTokens.accentPrimary.withValues(alpha: 0.30),
                 width: 1,
               ),
             ),
@@ -822,8 +821,8 @@ class _PerformanceTrendCard extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          DTTokens.accentLive.withOpacity(0.20),
-                          DTTokens.accentLive.withOpacity(0.0),
+                          DTTokens.accentLive.withValues(alpha: 0.20),
+                          DTTokens.accentLive.withValues(alpha: 0.0),
                         ],
                       ),
                     ),
