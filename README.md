@@ -1,6 +1,6 @@
 # Predictive Digital Twin for Industrial Machines
 
-**Graduation Project — Industrial IoT and Applied Artificial Intelligence**
+**Industrial IoT and Applied Artificial Intelligence**
 
 ---
 
