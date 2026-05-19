@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 
 import '../app/state.dart';
 import '../data/sensor_metadata.dart';
-import '../models/engine_telemetry_payload.dart';
 import '../models/machine.dart';
 import '../models/machine_report.dart';
 import '../theme/dt_tokens.dart';
@@ -98,24 +97,44 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
     final dataState =
         payload == null ? DataState.awaiting : dataStateFromTimestamp(stamp);
 
-    // Sensors — prefer live MQTT readings, fall back to seed values.
-    final sensors = payload != null
-        ? payload.currentSensorReadings.entries.toList()
-        : <MapEntry<String, double>>[
-            MapEntry('Temp', machine.temperature),
-            MapEntry('Speed', machine.speed),
-            MapEntry('Pressure', machine.pressure),
-            MapEntry('Efficiency', machine.efficiency.toDouble()),
-          ];
+    // Always show the same 4 summary tiles in the Live Telemetry grid so
+    // the layout stays consistent whether the machine is awaiting data or
+    // actively receiving MQTT telemetry. Live payload values take priority
+    // over the machine's stored seed values.
+    final sensors = <MapEntry<String, double>>[
+      MapEntry(
+        'Temp',
+        payload?.temperature ??
+            payload?.currentSensorReadings['s_2'] ??
+            machine.temperature,
+      ),
+      MapEntry(
+        'Speed',
+        payload?.speed ??
+            payload?.currentSensorReadings['s_8'] ??
+            machine.speed,
+      ),
+      MapEntry(
+        'Pressure',
+        payload?.currentSensorReadings['s_7'] ??
+            payload?.currentSensorReadings['s_11'] ??
+            machine.pressure,
+      ),
+      MapEntry(
+        'Efficiency',
+        payload?.healthScore ?? machine.efficiency.toDouble(),
+      ),
+    ];
 
     final causes = payload != null
         ? (payload.aiRootCauses.entries.toList()
               ..sort((a, b) => b.value.compareTo(a.value)))
-            .take(3)
+            .take(4)
             .toList()
         : const <MapEntry<String, double>>[];
 
     final rul = payload?.predictedRul;
+    final health = payload?.healthScore;
     final rulColor = rul == null
         ? DTTokens.statusOffline
         : rul < 50
@@ -163,7 +182,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
                   // Phase 3.5: renamed from "RUL". The cycle-count
                   // value is unchanged; only the label moves to a
                   // user-facing term.
-                  label: 'Predictive Main.',
+                  label: 'RUL.',
                   value: rul != null ? rul.toStringAsFixed(0) : '—',
                   unit: rul != null ? ' cyc' : null,
                   valueColor: rulColor,
@@ -173,11 +192,13 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
               Expanded(
                 child: KpiCard(
                   label: 'Health',
-                  value: '${machine.efficiency}',
+                  value: health != null
+                      ? health.toStringAsFixed(1)
+                      : '${machine.efficiency}',
                   unit: '%',
-                  valueColor: machine.efficiency >= 75
+                  valueColor: (health ?? machine.efficiency.toDouble()) >= 70
                       ? DTTokens.statusHealthy
-                      : machine.efficiency >= 60
+                      : (health ?? machine.efficiency.toDouble()) >= 30
                           ? DTTokens.statusWarning
                           : DTTokens.statusCritical,
                 ),
@@ -191,7 +212,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
           // been removed; the KPI tile above carries the Predictive
           // Maintenance value. The slot is now the AI Root Causes
           // (SHAP Top 3) chart, sourced from `payload.aiRootCauses`.
-          const SectionHeader(title: 'AI Root Causes (SHAP Top 3)'),
+          const SectionHeader(title: 'Key Risk Factors'),
           DtCard(
             child: SizedBox(
               height: 220,
@@ -207,7 +228,7 @@ class _MachineDetailScreenState extends State<MachineDetailScreen> {
             children: [
               const Expanded(child: SectionHeader(title: 'Live Telemetry')),
               TextButton.icon(
-                onPressed: () => _showAllSensorsSheet(context, payload),
+                onPressed: () => _showAllSensorsSheet(context, machine.id),
                 icon: const Icon(Icons.view_list_rounded, size: 16),
                 label: const Text('More sensors'),
                 style: TextButton.styleFrom(
@@ -562,6 +583,14 @@ class _SensorCard extends StatelessWidget {
   final String label;
   final double value;
 
+  // Units for the four fixed summary tiles whose labels are not sensor keys.
+  static const Map<String, String> _summaryUnits = <String, String>{
+    'Temp':       '°R',
+    'Speed':      'rpm',
+    'Pressure':   'psia',
+    'Efficiency': '%',
+  };
+
   @override
   Widget build(BuildContext context) {
     final palette = DTPalette.of(context);
@@ -570,9 +599,9 @@ class _SensorCard extends StatelessWidget {
         .firstWhere((s) => s?.key == label, orElse: () => null);
     final symbol = meta?.symbol ?? label.toUpperCase();
     final fullName = meta?.fullName ?? label;
-    final unit = (meta == null || meta.unit.isEmpty || meta.unit == '—')
-        ? ''
-        : meta.unit;
+    final unit = (meta != null && meta.unit.isNotEmpty && meta.unit != '—')
+        ? meta.unit
+        : (_summaryUnits[label] ?? '');
 
     return DtCard(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
@@ -673,10 +702,15 @@ class _ShapBars extends StatelessWidget {
               getTitlesWidget: (v, m) {
                 final idx = v.toInt();
                 if (idx < 0 || idx >= causes.length) return const SizedBox();
+                final rawKey = causes[idx].key;
+                final symbol = kAllSensors
+                    .cast<SensorMetadata?>()
+                    .firstWhere((s) => s?.key == rawKey, orElse: () => null)
+                    ?.symbol ?? rawKey;
                 return Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
-                    causes[idx].key,
+                    symbol,
                     style: DTTokens.caption(palette.textSecondary),
                   ),
                 );
@@ -1046,16 +1080,20 @@ class _RootCausesEmpty extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// All-sensors sheet (Phase 3.5)
-// Shows every sensor in `kAllSensors` with its key, symbol, full name,
-// unit and current value (or "—" when missing). Wired to the
-// "More sensors" button on the Live Telemetry section header.
+// All-sensors sheet
+// Shows all 14 engine sensor channels from kAllSensors with descaled,
+// human-readable physical values derived from live MQTT telemetry.
+// The sheet subscribes to AppState so values update in real time as new
+// MQTT messages arrive without needing to close and reopen the sheet.
 // ─────────────────────────────────────────────────────────────────────────────
 
-void _showAllSensorsSheet(
-  BuildContext context,
-  EngineTelemetryPayload? payload,
-) {
+void _showAllSensorsSheet(BuildContext context, String machineId) {
+  // Capture the AppState instance before opening the sheet. The modal
+  // bottom sheet runs in its own route with an independent widget tree, so
+  // we re-inject it via ChangeNotifierProvider.value to keep the Consumer
+  // inside the sheet reactive to incoming telemetry.
+  final appState = context.read<AppState>();
+
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -1064,80 +1102,113 @@ void _showAllSensorsSheet(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
     builder: (ctx) {
-      final palette = DTPalette.of(ctx);
-      final readings = payload?.currentSensorReadings ?? const {};
-      return DraggableScrollableSheet(
-        initialChildSize: 0.78,
-        minChildSize: 0.4,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (_, scrollController) {
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: palette.borderSubtle,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'All sensors',
-                  style: DTTokens.h3(palette.textPrimary),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  payload == null
-                      ? 'No live telemetry yet — values appear once data arrives.'
-                      : '${readings.length} of ${kAllSensors.length} sensors reporting.',
-                  style: DTTokens.caption(palette.textTertiary),
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: ListView.separated(
-                    controller: scrollController,
-                    itemCount: kAllSensors.length,
-                    separatorBuilder: (_, __) =>
-                        const SizedBox(height: DTTokens.cardGap),
-                    itemBuilder: (_, i) {
-                      final s = kAllSensors[i];
-                      final raw = readings[s.key];
-                      return _SensorRow(meta: s, value: raw);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+      return ChangeNotifierProvider<AppState>.value(
+        value: appState,
+        child: _AllSensorsSheetContent(machineId: machineId),
       );
     },
   );
 }
 
-class _SensorRow extends StatelessWidget {
-  const _SensorRow({required this.meta, required this.value});
-  final SensorMetadata meta;
-  final double? value;
+// Stateless widget for the bottom-sheet body. The DraggableScrollableSheet is
+// built once; only the Consumer subtree rebuilds when telemetry updates arrive.
+class _AllSensorsSheetContent extends StatelessWidget {
+  const _AllSensorsSheetContent({required this.machineId});
+  final String machineId;
 
   @override
   Widget build(BuildContext context) {
     final palette = DTPalette.of(context);
-    final hasValue = value != null;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.78,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, scrollController) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Consumer<AppState>(
+            builder: (_, app, __) {
+              final payload = app.latestTelemetryFor(machineId);
+              final readings =
+                  payload?.currentSensorReadings ?? const <String, double>{};
+              final reportingCount =
+                  kAllSensors.where((s) => readings.containsKey(s.key)).length;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Drag handle
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: palette.borderSubtle,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text('All sensors', style: DTTokens.h3(palette.textPrimary)),
+                  const SizedBox(height: 4),
+                  Text(
+                    payload == null
+                        ? 'No live telemetry yet — values appear once data arrives.'
+                        : '$reportingCount of ${kAllSensors.length} sensors reporting.',
+                    style: DTTokens.caption(palette.textTertiary),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: ListView.separated(
+                      controller: scrollController,
+                      itemCount: kAllSensors.length,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: DTTokens.cardGap),
+                      itemBuilder: (_, i) {
+                        final s = kAllSensors[i];
+                        return _SensorRow(
+                          meta: s,
+                          physicalValue: readings[s.key],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SensorRow extends StatelessWidget {
+  const _SensorRow({required this.meta, required this.physicalValue});
+  final SensorMetadata meta;
+
+  // Raw sensor value received directly from the MQTT telemetry payload.
+  // Already in physical engineering units — no scaling or math is applied.
+  // Null when no telemetry has been received yet for this sensor channel.
+  final double? physicalValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = DTPalette.of(context);
+    final hasValue = physicalValue != null;
     final showUnit = meta.unit.isNotEmpty && meta.unit != '—';
+
+    final String displayValue = hasValue
+        ? physicalValue!.toStringAsFixed(2)
+        : '—';
+
     return DtCard(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       child: Row(
         children: [
-          // Symbol (primary) + key (secondary)
+          // Symbol (primary identifier) + raw key (secondary)
           SizedBox(
             width: 68,
             child: Column(
@@ -1158,7 +1229,7 @@ class _SensorRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: DTTokens.space12),
-          // Full name
+          // Full sensor name
           Expanded(
             child: Text(
               meta.fullName,
@@ -1169,19 +1240,19 @@ class _SensorRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: DTTokens.space12),
-          // Value + unit
+          // Descaled physical value + unit
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                hasValue ? value!.toStringAsFixed(1) : '—',
+                displayValue,
                 style: DTTokens.mono(
                   hasValue ? DTTokens.accentLive : palette.textTertiary,
                   size: 15,
                   weight: FontWeight.w700,
                 ),
               ),
-              if (showUnit)
+              if (showUnit && hasValue)
                 Text(
                   meta.unit,
                   style: DTTokens.caption(palette.textTertiary)
@@ -1193,4 +1264,5 @@ class _SensorRow extends StatelessWidget {
       ),
     );
   }
+
 }

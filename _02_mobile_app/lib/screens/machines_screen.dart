@@ -297,8 +297,14 @@ class _MachineListCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = DTPalette.of(context);
-    final color = statusColor(machine.status);
-    final dataState = dataStateFromTimestamp(machine.lastUpdated);
+    final app = context.watch<AppState>();
+    // Use the auto-derived status so the badge always matches the filter chip.
+    final resolved = app.resolvedStatusFor(machine.id);
+    final color = statusColor(resolved);
+    // Use the live last-seen timestamp so the data-freshness dot reacts to
+    // incoming MQTT packets rather than the static seed value.
+    final lastSeen = app.lastSeenFor(machine.id);
+    final dataState = dataStateFromTimestamp(lastSeen ?? machine.lastUpdated);
 
     return DtCard(
       padding: EdgeInsets.zero,
@@ -341,7 +347,7 @@ class _MachineListCard extends StatelessWidget {
                   top: 10,
                   left: 10,
                   child: StatusBadge(
-                    label: statusText(machine.status).toUpperCase(),
+                    label: statusText(resolved).toUpperCase(),
                     color: color,
                   ),
                 ),

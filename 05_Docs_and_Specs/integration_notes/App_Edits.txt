@@ -1,0 +1,42 @@
+Log In Page
+1. Contact to admin if the account isn't exist.
+forget password - no acount -> admin 
+                                   1- reject
+                                   2- accept
+2. for all roles, dashboard after log in
+
+   
+Dashboard Page
+1. -Remove Energy (Dashboard)
+   - small widget and add a small table of top at risk (Make bottoms to navigate to down) 
+   - see photo (WhatsApp)
+2. in dashboard, replace top icon with the main icon in the sign in (blue icon)
+
+
+Machines Page
+1. stopped status filter remove
+
+Machine Details Page
+1. change name of RUL to Predictive Main. and remove it the down section (top not down) 
+
+2. AI Root Causes: - Particular part predicted by AI.
+                   - swap it with predictive maintenance block
+                   - SEE PHOTO, Video
+
+3. add more beside more sensors (live telemetry     *****) to show more all sensors 
+
+4. Remove Machine Start and stop in actions and make the states of the machines and history depend on following logic:
+   - if application receives data -> running, 
+   - if application doesn't receives data and machine doesn't has a report -> fault 
+   - if application doesn't receives data and machine has a report -> Under maintenance 
+
+Alerts Page 
+*NO CHANGES*
+
+History Page
+1. Updates Status send to history (Machine stopped, Machine Started Following the logic above)
+
+Settings "Administration" Page
+1. add user - remove enable bottom 
+
+2. add user - more reliable add users in firebase/cloudiniry

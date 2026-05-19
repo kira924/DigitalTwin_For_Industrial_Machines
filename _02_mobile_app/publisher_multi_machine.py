@@ -1,4 +1,5 @@
 import os
+import ssl
 import sys
 import json
 import time
@@ -10,7 +11,6 @@ import tensorflow as tf
 import paho.mqtt.client as mqtt
 from datetime import datetime, timezone
 from pathlib import Path
-import time
 
 # --- Configuration & Standards ---
 # English comments only, no emojis in code.
@@ -18,18 +18,29 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings('ignore', category=UserWarning)
 
 # --- Path Setup ---
-# Dynamically locate the project root
 BASE_DIR = Path(__file__).resolve().parents[1]
 AI_SRC_PATH = BASE_DIR / "01_AI_and_Data" / "src"
 sys.path.insert(0, str(AI_SRC_PATH))
 
 import shap_explainer
 
-# --- Constants ---
-BROKER = "127.0.0.1"
-PORT = 1883
+# --- MQTT Configuration ---
+# Defaults point to the HiveMQ Cloud private cluster.
+# Plan-B fallback (local Mosquitto, no TLS):
+#   set MQTT_BROKER=127.0.0.1
+#   set MQTT_PORT=1883
+#   set MQTT_USE_TLS=false
+#   set MQTT_USERNAME=
+#   set MQTT_PASSWORD=
+#   python publisher_multi_machine.py
+BROKER       = os.environ.get("MQTT_BROKER",   "1c2024b173114f9d9e1577e9d4a5c467.s1.eu.hivemq.cloud")
+PORT         = int(os.environ.get("MQTT_PORT",  "8883"))
+MQTT_USERNAME = os.environ.get("MQTT_USERNAME", "khaled_admin")
+MQTT_PASSWORD = os.environ.get("MQTT_PASSWORD", "Test1234")
+USE_TLS      = os.environ.get("MQTT_USE_TLS",  "true").strip().lower() == "true"
+
 RAW_TOPIC = "digital_twin/raw_sensors"
-AI_TOPIC = "digital_twin/engine_telemetry"
+AI_TOPIC  = "digital_twin/engine_telemetry"
 
 SEQ_LENGTH = 30
 FEATURES_COUNT = 16
@@ -137,18 +148,58 @@ def on_message(client, userdata, msg):
     except Exception as e:
         print(f"Inference Error: {e}")
 
+def on_connect(client, userdata, connect_flags, reason_code, properties):
+    """Called by paho when the CONNECT acknowledgement arrives from the broker."""
+    if reason_code == 0:
+        print(f"[MQTT] Connected successfully to {BROKER}:{PORT}")
+        client.subscribe(RAW_TOPIC, qos=1)
+        print(f"[MQTT] Subscribed to '{RAW_TOPIC}' — waiting for Webots sensor data...")
+    else:
+        print(f"[MQTT] Connection refused by broker — reason code: {reason_code}")
+
+
+def on_disconnect(client, userdata, disconnect_flags, reason_code, properties):
+    """Called by paho when the connection is lost or closed."""
+    if reason_code == 0:
+        print("[MQTT] Disconnected cleanly.")
+    else:
+        print(f"[MQTT] Unexpected disconnect — reason code: {reason_code}. Will attempt reconnect.")
+
+
+def on_subscribe(client, userdata, mid, reason_code_list, properties):
+    """Called by paho when the broker confirms the subscription."""
+    for rc in reason_code_list:
+        if rc.is_failure:
+            print(f"[MQTT] Subscription rejected by broker: {rc}")
+        else:
+            print(f"[MQTT] Broker confirmed subscription (QoS granted: {rc.value})")
+
+
 def main():
     load_assets()
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "AI_Inference_Publisher")
-    client.on_message = on_message
-    
+    client.on_connect    = on_connect
+    client.on_disconnect = on_disconnect
+    client.on_subscribe  = on_subscribe
+    client.on_message    = on_message
+
+    # Authentication — omitted when username is empty (anonymous local broker).
+    if MQTT_USERNAME:
+        client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+        print(f"[MQTT] Credentials set (username: {MQTT_USERNAME})")
+
+    # TLS — enabled for the cloud cluster, disabled for local Mosquitto fallback.
+    if USE_TLS:
+        client.tls_set(cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS_CLIENT)
+        print("[MQTT] TLS enabled")
+
+    mode = "HiveMQ Cloud (TLS port 8883)" if USE_TLS else "local Mosquitto (plain TCP)"
+    print(f"[MQTT] Connecting to {BROKER}:{PORT} [{mode}]...")
     try:
-        client.connect(BROKER, PORT, 60)
-        client.subscribe(RAW_TOPIC)
-        print(f"AI Engine connected to {BROKER}. Listening on {RAW_TOPIC}...")
+        client.connect(BROKER, PORT, keepalive=60)
         client.loop_forever()
     except KeyboardInterrupt:
-        print("Stopping AI Engine...")
+        print("\n[MQTT] Stopping AI Engine...")
     finally:
         client.disconnect()
 

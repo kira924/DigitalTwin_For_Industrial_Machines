@@ -36,7 +36,7 @@ class MachineSensor {
         'label': label,
         'unit': unit,
         'value': value,
-        'color': color.value,
+        'color': color.toARGB32(),
       };
 
   factory MachineSensor.fromMap(Map<String, dynamic> map) {
@@ -44,7 +44,7 @@ class MachineSensor {
       label: (map['label'] ?? '').toString(),
       unit: (map['unit'] ?? '').toString(),
       value: ((map['value'] ?? 0) as num).toDouble(),
-      color: Color((map['color'] ?? DT.green.value) as int),
+      color: Color((map['color'] ?? DT.green.toARGB32()) as int),
     );
   }
 }
@@ -66,7 +66,7 @@ class MachineTimelineEvent {
         'time': time.toIso8601String(),
         'title': title,
         'detail': detail,
-        'color': color.value,
+        'color': color.toARGB32(),
       };
 
   factory MachineTimelineEvent.fromMap(Map<String, dynamic> map) {
@@ -74,7 +74,7 @@ class MachineTimelineEvent {
       time: DateTime.tryParse((map['time'] ?? '').toString()) ?? DateTime.now(),
       title: (map['title'] ?? '').toString(),
       detail: (map['detail'] ?? '').toString(),
-      color: Color((map['color'] ?? DT.cyan.value) as int),
+      color: Color((map['color'] ?? DT.cyan.toARGB32()) as int),
     );
   }
 }

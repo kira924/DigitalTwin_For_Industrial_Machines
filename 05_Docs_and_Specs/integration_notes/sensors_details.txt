@@ -1,0 +1,29 @@
+**Sensor mapping** (from Table 2 of the paper)
+
+| Key |      Symbol | Full Name | Unit |
+|---|---|---|---|
+| setting_1 | alt | Altitude | ft |
+| setting_2 | Mach| Mach Number | — |
+| s_2 |	      T24 | Total Temperature at LPC Outlet | °R |
+| s_3 |       T30 | Total Temperature at HPC Outlet | °R |
+| s_4 |       T50 | Total Temperature at LPT Outlet | °R |
+| s_7 |       P30 | Total Pressure at HPC Outlet | psia |
+| s_8 |        Nf | Physical Fan Speed | rpm |
+| s_9 |        Nc | Physical Core Speed | rpm |
+| s_11 |     Ps30 | Static Pressure at HPC Outlet | psia |
+| s_12 |      phi | Fuel Flow / Ps30 Ratio | pps/psi |
+| s_13 |      NRf | Corrected Fan Speed | rpm |
+| s_14 |      NRc | Corrected Core Speed | % |
+| s_15 |      BPR | Bypass Ratio | — |
+| s_17 |  htBleed | Bleed Enthalpy | — |
+| s_20 |      W31 | HPT Coolant Bleed Flow | lbm/s |
+| s_21 |      W32 | LPT Coolant Bleed Flow | lbm/s |
+
+
+**Scaling method** — the paper's competition data uses **min-max normalization to `[-1, 1]`**, the standard for CMAPSS releases. The inverse formula is:
+
+```
+x_physical = (x_scaled + 1) / 2 × (x_max − x_min) + x_min
+```
+
+Your sample reading decoded to, for example: **Altitude ≈ 26,833 ft**, **Fan Speed ≈ 2,153 rpm**, **Core Speed ≈ 8,130 rpm**, **T30 ≈ 1,207 °R** — all physically plausible cruise values for a large turbofan.

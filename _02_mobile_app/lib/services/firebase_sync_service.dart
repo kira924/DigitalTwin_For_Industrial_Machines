@@ -134,12 +134,24 @@ class FirebaseSyncService {
   }
 
   Future<void> upsertUser(AppUser user) {
-    final asMap = user.toMap()
-      ..['updatedAt'] = FieldValue.serverTimestamp();
+    final asMap = user.toMap()..['updatedAt'] = FieldValue.serverTimestamp();
+    // Never overwrite null photo fields — they may not be loaded locally yet.
+    // Use clearUserPhotoFields() to explicitly remove them.
+    if (asMap['photoUrl'] == null) asMap.remove('photoUrl');
+    if (asMap['photoStoragePath'] == null) asMap.remove('photoStoragePath');
     return _firestore.collection('users').doc(user.id).set(
           asMap,
           SetOptions(merge: true),
         );
+  }
+
+  /// Explicitly clears the avatar from a user's Firestore document.
+  Future<void> clearUserPhotoFields(String userId) {
+    return _firestore.collection('users').doc(userId).update({
+      'photoUrl': null,
+      'photoStoragePath': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<void> deleteUser(String userId) {
@@ -169,17 +181,22 @@ class FirebaseSyncService {
   }
 
   Future<void> upsertMachine(Machine machine) {
+    final data = Map<String, dynamic>.from(machine.toMap());
+    // Never overwrite null image fields — they may not be loaded locally yet.
+    // Use clearMachineImageFields() to explicitly remove them.
+    if (data['imageUrl'] == null) data.remove('imageUrl');
+    if (data['imageStoragePath'] == null) data.remove('imageStoragePath');
     return _firestore
         .collection('machines')
         .doc(machine.id)
-        .set(machine.toMap(), SetOptions(merge: true));
+        .set(data, SetOptions(merge: true));
   }
 
   Future<void> deleteMachine(String machineId) {
     return _firestore.collection('machines').doc(machineId).delete();
   }
 
-  /// Updates only the `imageUrl` field on a machine.
+  /// Updates only the `imageUrl` and `imageStoragePath` fields on a machine.
   Future<void> updateMachineImageUrl(String machineId, String imageUrl) {
     return _firestore.collection('machines').doc(machineId).set(
       {'imageUrl': imageUrl, 'updatedAt': FieldValue.serverTimestamp()},
@@ -187,27 +204,46 @@ class FirebaseSyncService {
     );
   }
 
+  /// Explicitly clears the image from a machine's Firestore document.
+  Future<void> clearMachineImageFields(String machineId) {
+    return _firestore.collection('machines').doc(machineId).update({
+      'imageUrl': null,
+      'imageStoragePath': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> seedIfEmpty(List<Machine> machines, List<AppUser> users) async {
     final machineCollection = _firestore.collection('machines');
     final userCollection = _firestore.collection('users');
 
-    final machineSnapshot = await machineCollection.limit(1).get();
-    if (machineSnapshot.docs.isEmpty) {
+    final results = await Future.wait([
+      machineCollection.limit(1).get(),
+      userCollection.limit(1).get(),
+    ]);
+
+    final writes = <Future<void>>[];
+
+    if (results[0].docs.isEmpty) {
       final batch = _firestore.batch();
       for (final machine in machines) {
-        batch.set(machineCollection.doc(machine.id), machine.toMap());
+        // merge: true — never destroy fields on any doc that somehow exists
+        batch.set(machineCollection.doc(machine.id), machine.toMap(),
+            SetOptions(merge: true));
       }
-      await batch.commit();
+      writes.add(batch.commit());
     }
 
-    final userSnapshot = await userCollection.limit(1).get();
-    if (userSnapshot.docs.isEmpty) {
+    if (results[1].docs.isEmpty) {
       final batch = _firestore.batch();
       for (final user in users) {
-        batch.set(userCollection.doc(user.id), user.toMap());
+        batch.set(userCollection.doc(user.id), user.toMap(),
+            SetOptions(merge: true));
       }
-      await batch.commit();
+      writes.add(batch.commit());
     }
+
+    if (writes.isNotEmpty) await Future.wait(writes);
   }
 
   // ── Per-machine reports ───────────────────────────────────────────────────

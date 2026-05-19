@@ -1,47 +1,186 @@
-# 1. Environment Variables and Secrets
-.env
-.env.local
+# =============================================================================
+# Digital Twin Project — .gitignore
+# Stack: Python/ML (LSTM, SHAP, TFLite), Flutter/Dart, FastAPI, Mosquitto, Webots
+# =============================================================================
 
-# 2. Python and AI Environment
+
+# -----------------------------------------------------------------------------
+# Secrets and Environment Variables
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*service-account*.json
+firebase-service-account.json
+google-services.json
+GoogleService-Info.plist
+_02_mobile_app/lib/firebase/*.json
+
+
+# -----------------------------------------------------------------------------
+# Python — Compiled and Cache Files
+# -----------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
 *~
+
+# Virtual environments
 .venv/
 venv/
 env/
+ENV/
+.env/
+
+# Jupyter
 .ipynb_checkpoints/
 
-# 3. Large Datasets
-CMAPSSData/
-data/raw/
-*.csv
-*.txt
-*.dat
+# Testing and packaging
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
 
-# 4. Machine Learning Models and Scalers
-saved_models/*.keras
-saved_models/*.h5
-saved_models/*.pb
-saved_models/checkpoints/
+
+# -----------------------------------------------------------------------------
+# Machine Learning — Models, Scalers, and Artifacts
+# (applies at any directory depth)
+# -----------------------------------------------------------------------------
+*.keras
+*.h5
+*.pb
+*.tflite
 *.gz
 *.pkl
+**/saved_models/checkpoints/
+**/saved_models/scalers/
+_02_mobile_app/backend/calibrated_scaler/
 
-# 5. Mobile App (Flutter)
-02_Mobile_App/build/
-02_Mobile_App/.dart_tool/
-02_Mobile_App/.flutter-plugins
-02_Mobile_App/.flutter-plugins-dependencies
-02_Mobile_App/.packages
+
+# -----------------------------------------------------------------------------
+# Large Datasets — NASA C-MAPSS and Processed Data
+# (raw and processed data directories are never committed)
+# -----------------------------------------------------------------------------
+01_AI_and_Data/data/raw/
+01_AI_and_Data/data/processed/
+01_AI_and_Data/data/external/
+**/CMAPSSData/
+
+# NASA C-MAPSS dataset text files (large, binary-equivalent)
+train_FD00*.txt
+test_FD00*.txt
+RUL_FD00*.txt
+
+# Generic large data file formats
+*.csv
+*.dat
+
+
+# -----------------------------------------------------------------------------
+# Log and Generated Output Files
+# -----------------------------------------------------------------------------
+*.log
+logs/
+output.txt
+crash.txt
+flutter_*.log
+
+
+# -----------------------------------------------------------------------------
+# Flutter / Dart
+# -----------------------------------------------------------------------------
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+/coverage/
+
+# Symbolication and obfuscation maps
+app.*.symbols
+app.*.map.json
+
+# Android build artifacts
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Android signing keys
 *.keystore
 *.jks
 
-# 6. 3D Simulation
+# IntelliJ / Android Studio
+*.iml
+*.ipr
+*.iws
+
+
+# -----------------------------------------------------------------------------
+# Firebase CLI Artifacts
+# -----------------------------------------------------------------------------
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+
+# -----------------------------------------------------------------------------
+# 3D Simulation / Blender
+# -----------------------------------------------------------------------------
 *.blend1
 *.blend2
-crash.txt
 
-# 7. IDEs and OS specific files
+
+# -----------------------------------------------------------------------------
+# IDEs and Editors
+# -----------------------------------------------------------------------------
 .vscode/
+.cursor/
 .idea/
+.history/
+.vs/
+.atom/
+*.swp
+*.swo
+
+
+# -----------------------------------------------------------------------------
+# OS-Specific Files
+# -----------------------------------------------------------------------------
+# macOS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V8
+.Trashes
+
+# Windows
 Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# -----------------------------------------------------------------------------
+# Binary / Large Non-Code Assets
+# -----------------------------------------------------------------------------
+*.pptx
+*.ppt
+*.docx
+*.xlsx
+
+
+# -----------------------------------------------------------------------------
+# Node.js (Flutter web target / Firebase tooling)
+# -----------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

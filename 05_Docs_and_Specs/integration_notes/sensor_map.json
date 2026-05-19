@@ -1,0 +1,119 @@
+{
+  "source": "Saxena et al., 'Damage Propagation Modeling for Aircraft Engine Run-to-Failure Simulation', PHM08. Based on C-MAPSS (Commercial Modular Aero-Propulsion System Simulation) Table 2.",
+  "operational_settings": {
+    "setting_1": {
+      "symbol": "alt",
+      "full_name": "Altitude",
+      "description": "Flight altitude operational condition",
+      "unit": "ft",
+      "range": [0, 42000]
+    },
+    "setting_2": {
+      "symbol": "Mach",
+      "full_name": "Mach Number",
+      "description": "Flight Mach number operational condition",
+      "unit": "dimensionless",
+      "range": [0.0, 0.84]
+    }
+  },
+  "sensors": {
+    "s_2": {
+      "symbol": "T24",
+      "full_name": "Total Temperature at LPC Outlet",
+      "description": "Total temperature measured at the Low-Pressure Compressor outlet",
+      "unit": "°R (Rankine)",
+      "range": [488.16, 644.44]
+    },
+    "s_3": {
+      "symbol": "T30",
+      "full_name": "Total Temperature at HPC Outlet",
+      "description": "Total temperature measured at the High-Pressure Compressor outlet",
+      "unit": "°R (Rankine)",
+      "range": [1021.65, 1616.88]
+    },
+    "s_4": {
+      "symbol": "T50",
+      "full_name": "Total Temperature at LPT Outlet",
+      "description": "Total temperature measured at the Low-Pressure Turbine outlet",
+      "unit": "°R (Rankine)",
+      "range": [1064.84, 1516.30]
+    },
+    "s_7": {
+      "symbol": "P30",
+      "full_name": "Total Pressure at HPC Outlet",
+      "description": "Total pressure measured at the High-Pressure Compressor outlet",
+      "unit": "psia",
+      "range": [199.20, 556.10]
+    },
+    "s_8": {
+      "symbol": "Nf",
+      "full_name": "Physical Fan Speed",
+      "description": "Rotational speed of the fan (physical, not corrected)",
+      "unit": "rpm",
+      "range": [2112.0, 2388.0]
+    },
+    "s_9": {
+      "symbol": "Nc",
+      "full_name": "Physical Core Speed",
+      "description": "Rotational speed of the engine core (physical, not corrected)",
+      "unit": "rpm",
+      "range": [7852.0, 9250.0]
+    },
+    "s_11": {
+      "symbol": "Ps30",
+      "full_name": "Static Pressure at HPC Outlet",
+      "description": "Static pressure measured at the High-Pressure Compressor outlet",
+      "unit": "psia",
+      "range": [46.20, 51.48]
+    },
+    "s_12": {
+      "symbol": "phi",
+      "full_name": "Ratio of Fuel Flow to Ps30",
+      "description": "Fuel flow rate divided by the static pressure at the HPC outlet",
+      "unit": "pps/psi",
+      "range": [185.04, 322.74]
+    },
+    "s_13": {
+      "symbol": "NRf",
+      "full_name": "Corrected Fan Speed",
+      "description": "Fan speed corrected for non-standard inlet conditions",
+      "unit": "rpm",
+      "range": [2028.0, 2388.0]
+    },
+    "s_14": {
+      "symbol": "NRc",
+      "full_name": "Corrected Core Speed",
+      "description": "Core speed corrected for non-standard inlet conditions",
+      "unit": "%",
+      "range": [84.93, 100.0]
+    },
+    "s_15": {
+      "symbol": "BPR",
+      "full_name": "Bypass Ratio",
+      "description": "Ratio of air mass flow through the bypass duct to air flow through the core",
+      "unit": "dimensionless",
+      "range": [4.74, 8.85]
+    },
+    "s_17": {
+      "symbol": "htBleed",
+      "full_name": "Bleed Enthalpy",
+      "description": "Enthalpy of the bleed air extracted from the compressor",
+      "unit": "dimensionless",
+      "range": [100.0, 400.0]
+    },
+    "s_20": {
+      "symbol": "W31",
+      "full_name": "HPT Coolant Bleed",
+      "description": "Coolant air bleed flow for the High-Pressure Turbine",
+      "unit": "lbm/s",
+      "range": [13.20, 23.46]
+    },
+    "s_21": {
+      "symbol": "W32",
+      "full_name": "LPT Coolant Bleed",
+      "description": "Coolant air bleed flow for the Low-Pressure Turbine",
+      "unit": "lbm/s",
+      "range": [8.44, 23.30]
+    }
+  }
+}

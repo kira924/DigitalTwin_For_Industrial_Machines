@@ -290,8 +290,8 @@ class _RootCausesSection extends StatelessWidget {
                       },
                     ),
                   ),
-                  duration: Duration.zero,
-                  curve: Curves.easeInOutCubic,
+                  swapAnimationDuration: Duration.zero,
+                  swapAnimationCurve: Curves.easeInOutCubic,
                 ),
               ),
             ],
@@ -480,7 +480,6 @@ class _SensorSparkline extends StatelessWidget {
 
 class _AnimatedNumber extends StatelessWidget {
   const _AnimatedNumber({
-    super.key,
     required this.value,
     required this.fractionDigits,
     required this.style,
